@@ -1,0 +1,7 @@
+/*/
+.*
+*.json
+!.editorconfig
+!.gitignore
+!.prettierrc
+!package.json
