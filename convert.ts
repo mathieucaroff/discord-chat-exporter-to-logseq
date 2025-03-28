@@ -18,15 +18,24 @@ function getSecondTime(timestamp: string) {
   return timestamp.replace(/\..*/, "").replace("T", " ")
 }
 
-const JSON_FILE_NAME = "DiscordOxydeDM-2025-03-25.json"
+const INPUT_JSON_FILE_NAME = process.env.INPUT_JSON_FILE_NAME
 const OUTPUT_FOLDER_NAME = "out"
-const FOLDER_NAME_BEFORE = "DiscordOxydeDM-2025-03-25.json_Files"
-const FOLDER_NAME_AFTER = "../../assets/OXDMIMG"
+const OUTPUT_FILE_NAME_PREFIX = process.env.OUTPUT_FILE_NAME_PREFIX || ""
+const OUTPUT_SPLIT_BY_MONTH = Boolean(process.env.OUTPUT_SPLIT_BY_MONTH)
+const FOLDER_NAME_BEFORE = `${INPUT_JSON_FILE_NAME}_Files`
+const FOLDER_NAME_AFTER = process.env.FOLDER_NAME_AFTER || "../assets"
 // FOLDER_NAME_DURING is used to filter out empty files
-const FOLDER_NAME_DURING = process.env.FOLDER_NAME_DURING || ""
+const FOLDER_NAME_DURING = process.env.FOLDER_NAME_DURING
 
-console.log("JSON_FILE_NAME is", JSON_FILE_NAME)
+if (!INPUT_JSON_FILE_NAME) {
+  console.error("INPUT_JSON_FILE_NAME is not set")
+  process.exit(1)
+}
+
+console.log("INPUT_JSON_FILE_NAME is", INPUT_JSON_FILE_NAME)
 console.log("OUTPUT_FOLDER_NAME is", OUTPUT_FOLDER_NAME)
+console.log("OUTPUT_FILE_NAME_PREFIX is", OUTPUT_FILE_NAME_PREFIX)
+console.log("OUTPUT_SPLIT_BY_MONTH is", OUTPUT_SPLIT_BY_MONTH)
 console.log("FOLDER_NAME_BEFORE is", FOLDER_NAME_BEFORE)
 console.log("FOLDER_NAME_AFTER is", FOLDER_NAME_AFTER)
 console.log("FOLDER_NAME_DURING is", FOLDER_NAME_DURING)
@@ -58,7 +67,7 @@ function fileIsEmpty(url: string) {
 }
 
 // Read the HTML file
-const { messages } = JSON.parse(fs.readFileSync(JSON_FILE_NAME, "utf-8"))
+const { messages } = JSON.parse(fs.readFileSync(INPUT_JSON_FILE_NAME, "utf-8"))
 
 const richMessageArray: TimedBlock[] = messages.map(
   ({ timestamp, content, attachments, embeds }) => {
@@ -105,7 +114,7 @@ const richMessageArray: TimedBlock[] = messages.map(
 )
 
 // <monthList>/<minuteList>/<messageList>
-const blockListListArray: TimedBlock[][][] = Object.values(
+let blockListListArray: TimedBlock[][][] = Object.values(
   groupBy(richMessageArray, ({ timestamp }) => getMonth(timestamp))
 ).map((monthMessageList) => {
   return Object.values(
@@ -118,11 +127,19 @@ if (!fs.existsSync(OUTPUT_FOLDER_NAME)) {
   fs.mkdirSync(OUTPUT_FOLDER_NAME)
 }
 
+if (!OUTPUT_SPLIT_BY_MONTH) {
+  blockListListArray = [Array.prototype.concat(...blockListListArray)]
+}
+
 blockListListArray.forEach((blockListList) => {
   let yearMonth = getMonth(blockListList[0][0].timestamp)
-  let fileName = `${OUTPUT_FOLDER_NAME}/OXDM${yearMonth}.md`
+  if (!OUTPUT_SPLIT_BY_MONTH) {
+    yearMonth = ""
+  }
+  let fileName = `${OUTPUT_FOLDER_NAME}/${OUTPUT_FILE_NAME_PREFIX}${yearMonth}.md`
 
   // Write the Markdown file
+  console.log("Writing", fileName)
   let out: string[] = []
   blockListList.forEach((blockList) => {
     out.push(`- ${getSecondTime(blockList[0].timestamp)}`)
